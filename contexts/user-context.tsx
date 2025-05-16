@@ -2,8 +2,8 @@
 
 import { createContext, useContext, useEffect, useState } from "react";
 import { IUser } from "@/types/user";
-import AppServer from "@/lib/server";
-import { getCurrentUser, logoutUser } from "@/app/(app)/actions";
+import { getCurrentUser } from "@/app/(app)/actions";
+import { logoutUser } from "@/app/(auth)/actions";
 
 interface UserContextType {
   user: IUser | null;

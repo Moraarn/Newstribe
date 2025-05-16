@@ -1,3 +1,5 @@
+"use server";
+
 import AppServer from "@/lib/server";
 import { IUser } from "@/types/user";
 import { cookies } from "next/headers";
@@ -7,10 +9,14 @@ import { redirect } from "next/navigation";
 export async function loginUser(data: {
     email: string;
     password: string;
-  }): Promise<{ success: boolean; user: IUser }> {
+  }): Promise<{ success: boolean; user: IUser; message: string }> {
     const response = await AppServer.post("/users/login", data);
-  
-    return response.data as { success: boolean; user: IUser };
+
+    // if (response.success) {
+    //   redirect("/");
+    // }
+
+    return response.data as { success: boolean; user: IUser; message: string };
   }
   
   // register user
@@ -19,10 +25,14 @@ export async function loginUser(data: {
     password: string;
     firstName: string;
     lastName: string;
-  }): Promise<{ success: boolean; user: IUser }> {
+  }): Promise<{ success: boolean; user: IUser; message: string }> {
     const response = await AppServer.post("/users/register", data);
+
+    // if (response.success) {
+    //   redirect("/");
+    // }
   
-    return response.data as { success: boolean; user: IUser };
+    return response.data as { success: boolean; user: IUser; message: string };
   }
   
   // logout user

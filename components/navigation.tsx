@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Bell, Menu, Search, User, X, LogIn } from "lucide-react"
+import { Bell, Menu, Search, User, X, LogIn, Award, Mail, LogOut } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -21,6 +21,7 @@ import { ThemeToggle } from "@/components/theme-toggle"
 import { useNotifications } from "@/contexts/notification-context"
 import { useUser } from "@/contexts/user-context"
 import { formatDistanceToNow } from "date-fns"
+import { Separator } from "@/components/ui/separator"
 
 export function Navigation() {
   const pathname = usePathname()
@@ -55,6 +56,10 @@ export function Navigation() {
       active: pathname === "/news" || pathname.startsWith("/news/"),
     },
   ]
+
+  const getAvatarUrl = (email: string) => {
+    return `https://api.dicebear.com/7.x/avataaars/svg?seed=${email}&backgroundColor=b6e3f4,c0aede,d1d4f9&radius=50`
+  }
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -188,7 +193,7 @@ export function Navigation() {
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="icon" className="relative">
                     <Avatar className="h-8 w-8">
-                      <AvatarImage src={user.avatar} alt={user.firstName} />
+                      <AvatarImage src={user.avatar || getAvatarUrl(user.email)} alt={user.firstName} />
                       <AvatarFallback>
                         {user.firstName?.[0]}
                         {user.lastName?.[0]}
@@ -197,16 +202,50 @@ export function Navigation() {
                     <span className="sr-only">User menu</span>
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuLabel>My Account</DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem>
-                    <User className="mr-2 h-4 w-4" />
-                    <Link href="/profile">Profile</Link>
+                <DropdownMenuContent align="end" className="w-80">
+                  <div className="flex items-center gap-4 p-4">
+                    <Avatar className="h-16 w-16">
+                      <AvatarImage src={user.avatar || getAvatarUrl(user.email)} alt={user.firstName} />
+                      <AvatarFallback>
+                        {user.firstName?.[0]}
+                        {user.lastName?.[0]}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex flex-col">
+                      <p className="text-sm font-medium leading-none">
+                        {user.firstName} {user.lastName}
+                      </p>
+                      <p className="text-sm text-muted-foreground mt-1 flex items-center gap-1">
+                        <Mail className="h-3 w-3" />
+                        {user.email}
+                      </p>
+                      <div className="flex items-center gap-1 mt-2">
+                        <Award className="h-4 w-4 text-yellow-500" />
+                        <span className="text-sm font-medium">{user.points || 0} points</span>
+                      </div>
+                    </div>
+                  </div>
+                  <Separator />
+                  <DropdownMenuItem asChild>
+                    <Link href="/profile" className="flex items-center">
+                      <User className="mr-2 h-4 w-4" />
+                      Profile
+                    </Link>
                   </DropdownMenuItem>
-                  <DropdownMenuItem>Points: {user.points || 0}</DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => logout()}>Log out</DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/rewards" className="flex items-center">
+                      <Award className="mr-2 h-4 w-4" />
+                      Rewards
+                    </Link>
+                  </DropdownMenuItem>
+                  <Separator />
+                  <DropdownMenuItem
+                    onClick={() => logout()}
+                    className="text-red-600 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-950"
+                  >
+                    <LogOut className="mr-2 h-4 w-4" />
+                    Log out
+                  </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             </>
