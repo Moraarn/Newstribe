@@ -33,6 +33,18 @@ export async function getArticles(query: any): Promise<ContentResponse> {
   return response.data as ContentResponse;
 }
 
+export async function getQuizzes(query: any): Promise<ContentResponse> {
+  const response = await AppServer.get("/content", {
+    query: {
+      ...query,
+      type: query.type || ContentType.QUIZ,
+      limit: query.limit || 12,
+    },
+  });
+
+  return response.data as ContentResponse;
+}
+
 // get article by id
 export async function getArticleById(id: string): Promise<IContent> {
   const response = await AppServer.get(`/content/${id}`);
