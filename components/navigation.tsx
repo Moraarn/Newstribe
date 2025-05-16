@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Bell, Menu, Search, User } from "lucide-react"
+import { Bell, Menu, Search, User, X, LogIn } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -18,10 +18,15 @@ import { useState } from "react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { ThemeToggle } from "@/components/theme-toggle"
+import { useNotifications } from "@/contexts/notification-context"
+import { useUser } from "@/contexts/user-context"
+import { formatDistanceToNow } from "date-fns"
 
 export function Navigation() {
   const pathname = usePathname()
   const [isSearchOpen, setIsSearchOpen] = useState(false)
+  const { notifications, unreadCount, markAsRead, markAllAsRead, removeNotification } = useNotifications()
+  const { user, logout } = useUser()
 
   const routes = [
     {
@@ -104,59 +109,115 @@ export function Navigation() {
             <span className="sr-only">Search</span>
           </Button>
           <ThemeToggle />
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="relative">
-                <Bell className="h-5 w-5" />
-                <Badge className="absolute -top-1 -right-1 h-5 w-5 rounded-full p-0 flex items-center justify-center">
-                  3
-                </Badge>
-                <span className="sr-only">Notifications</span>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-80">
-              <DropdownMenuLabel>Notifications</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <div className="max-h-80 overflow-auto">
-                {[1, 2, 3].map((i) => (
-                  <DropdownMenuItem key={i} className="cursor-pointer py-3">
-                    <div className="flex items-start gap-2">
-                      <Avatar className="h-8 w-8">
-                        <AvatarFallback>U{i}</AvatarFallback>
-                      </Avatar>
-                      <div className="grid gap-1">
-                        <p className="text-sm font-medium leading-none">You earned 50 points!</p>
-                        <p className="text-xs text-muted-foreground">Completed reading "The Future of Technology"</p>
-                        <p className="text-xs text-muted-foreground">2 hours ago</p>
+          {user ? (
+            <>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="relative">
+                    <Bell className="h-5 w-5" />
+                    {unreadCount > 0 && (
+                      <Badge className="absolute -top-1 -right-1 h-5 w-5 rounded-full p-0 flex items-center justify-center">
+                        {unreadCount}
+                      </Badge>
+                    )}
+                    <span className="sr-only">Notifications</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-80">
+                  <div className="flex items-center justify-between px-2">
+                    <DropdownMenuLabel>Notifications</DropdownMenuLabel>
+                    {notifications.length > 0 && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8"
+                        onClick={() => markAllAsRead()}
+                      >
+                        Mark all as read
+                      </Button>
+                    )}
+                  </div>
+                  <DropdownMenuSeparator />
+                  <div className="max-h-80 overflow-auto">
+                    {notifications.length === 0 ? (
+                      <div className="p-4 text-center text-sm text-muted-foreground">
+                        No notifications
                       </div>
-                    </div>
+                    ) : (
+                      notifications.map((notification) => (
+                        <DropdownMenuItem
+                          key={notification.id}
+                          className={cn(
+                            "cursor-pointer py-3",
+                            !notification.read && "bg-muted/50"
+                          )}
+                          onClick={() => markAsRead(notification.id)}
+                        >
+                          <div className="flex items-start gap-2 w-full">
+                            <div className="flex-1">
+                              <p className="text-sm font-medium leading-none">
+                                {notification.title}
+                              </p>
+                              <p className="text-xs text-muted-foreground mt-1">
+                                {notification.message}
+                              </p>
+                              <p className="text-xs text-muted-foreground mt-1">
+                                {formatDistanceToNow(notification.createdAt, { addSuffix: true })}
+                              </p>
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                removeNotification(notification.id);
+                              }}
+                            >
+                              <X className="h-4 w-4" />
+                              <span className="sr-only">Remove notification</span>
+                            </Button>
+                          </div>
+                        </DropdownMenuItem>
+                      ))
+                    )}
+                  </div>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="relative">
+                    <Avatar className="h-8 w-8">
+                      <AvatarImage src={user.avatar} alt={user.firstName} />
+                      <AvatarFallback>
+                        {user.firstName?.[0]}
+                        {user.lastName?.[0]}
+                      </AvatarFallback>
+                    </Avatar>
+                    <span className="sr-only">User menu</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem>
+                    <User className="mr-2 h-4 w-4" />
+                    <Link href="/profile">Profile</Link>
                   </DropdownMenuItem>
-                ))}
-              </div>
-            </DropdownMenuContent>
-          </DropdownMenu>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="relative">
-                <Avatar className="h-8 w-8">
-                  <AvatarImage src="/placeholder-user.jpg" alt="@user" />
-                  <AvatarFallback>U</AvatarFallback>
-                </Avatar>
-                <span className="sr-only">User menu</span>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuLabel>My Account</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem>
-                <User className="mr-2 h-4 w-4" />
-                <Link href="/profile">Profile</Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem>Points: 1,250</DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem>Log out</DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+                  <DropdownMenuItem>Points: {user.points || 0}</DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => logout()}>Log out</DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </>
+          ) : (
+            <Button asChild variant="default" className="gap-2">
+              <Link href="/login">
+                <LogIn className="h-4 w-4" />
+                Login
+              </Link>
+            </Button>
+          )}
         </div>
       </div>
       {isSearchOpen && (

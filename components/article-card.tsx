@@ -14,7 +14,7 @@ export function ArticleCard({ article }: ArticleCardProps) {
   return (
     <Card className="overflow-hidden">
       <div className="relative">
-        <Link href={`/articles/${article._id}`}>
+        <Link href={`/content/${article._id}`}>
           <Image
             src={article.imageUrl || "/placeholder.svg"}
             alt={article.title}
@@ -35,7 +35,7 @@ export function ArticleCard({ article }: ArticleCardProps) {
             <p className="text-sm text-muted-foreground">
               {article.category} • {new Date(article.createdAt).toLocaleDateString()}
             </p>
-            <Link href={`/articles/${article._id}`} className="hover:underline">
+            <Link href={`/content/${article._id}`} className="hover:underline">
               <h3 className="font-bold mt-1 line-clamp-2">{article.title}</h3>
             </Link>
           </div>

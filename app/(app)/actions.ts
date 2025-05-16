@@ -2,6 +2,7 @@
 
 import AppServer, { PaginatedData } from "@/lib/server";
 import { ContentType, IContent } from "@/types/content";
+import { IUser } from "@/types/user";
 
 type ContentResponse = PaginatedData<{ contents: IContent[] }>;
 
@@ -37,4 +38,20 @@ export async function getArticleById(id: string): Promise<IContent> {
   const response = await AppServer.get(`/content/${id}`);
 
   return response.data as IContent;
+}
+
+// get current user
+export async function getCurrentUser(): Promise<{ success: boolean; user: IUser }> {
+  const response = await AppServer.get("/users/profile/me");
+
+  return response.data as { success: boolean; user: IUser };
+}
+
+// update user
+export async function updateUser(
+  updates: Partial<IUser>
+): Promise<{ success: boolean; user: IUser }> {
+  const response = await AppServer.patch("/users/profile/me", updates);
+
+  return response.data as { success: boolean; user: IUser };
 }

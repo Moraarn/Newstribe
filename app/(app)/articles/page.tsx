@@ -1,8 +1,8 @@
 import { Button } from "@/components/ui/button";
 import { Sparkles } from "lucide-react";
-import { getArticles } from "@/app/actions";
+import { getArticles } from "@/app/(app)/actions";
 import { ArticleCard } from "@/components/article-card";
-import { ArticleFilters, ArticlePagination } from "@/app/components/article-filters";
+import { ArticleFilters, ArticlePagination } from "@/components/article-filters";
 import { ContentType, IContent } from "@/types/content";
 
 interface PageProps {

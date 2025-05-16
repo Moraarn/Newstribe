@@ -1,39 +1,50 @@
-import type React from "react"
-import "@/app/globals.css"
-import type { Metadata } from "next"
-import { Inter } from "next/font/google"
-import { Navigation } from "@/components/navigation"
-import { ThemeProvider } from "@/components/theme-provider"
+import type React from "react";
+import "@/app/globals.css";
+import type { Metadata } from "next";
+import { Inter } from "next/font/google";
+import { Navigation } from "@/components/navigation";
+import { ThemeProvider } from "@/components/theme-provider";
+import { UserProvider } from "../contexts/user-context";
+import { NotificationProvider } from "../contexts/notification-context";
 
-const inter = Inter({ subsets: ["latin"] })
+const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "Newstribe - Content Platform",
   description: "An engaging content platform with articles, quizzes, and rewards",
-}
+};
 
 export default function RootLayout({
   children,
 }: Readonly<{
-  children: React.ReactNode
+  children: React.ReactNode;
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
-        <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
-          <div className="relative flex min-h-screen flex-col">
-            <Navigation />
-            <main className="flex-1">{children}</main>
-            <footer className="border-t py-6">
-              <div className="container flex flex-col items-center justify-between gap-4 md:h-16 md:flex-row">
-                <p className="text-center text-sm leading-loose text-muted-foreground md:text-left">
-                  © 2025 Newstribe. All rights reserved.
-                </p>
+        <UserProvider>
+          <NotificationProvider>
+            <ThemeProvider
+              attribute="class"
+              defaultTheme="system"
+              enableSystem
+              disableTransitionOnChange
+            >
+              <div className="relative flex min-h-screen flex-col">
+                <Navigation />
+                <main className="flex-1">{children}</main>
+                <footer className="border-t py-6">
+                  <div className="container flex flex-col items-center justify-between gap-4 md:h-16 md:flex-row">
+                    <p className="text-center text-sm leading-loose text-muted-foreground md:text-left">
+                      © 2025 Newstribe. All rights reserved.
+                    </p>
+                  </div>
+                </footer>
               </div>
-            </footer>
-          </div>
-        </ThemeProvider>
+            </ThemeProvider>
+          </NotificationProvider>
+        </UserProvider>
       </body>
     </html>
-  )
+  );
 }
