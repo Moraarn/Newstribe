@@ -1,42 +1,31 @@
-import Link from "next/link"
-import Image from "next/image"
-import { Badge } from "@/components/ui/badge"
-import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card"
-import { Clock, Share2, Star, Volume2 } from "lucide-react"
-import { Button } from "@/components/ui/button"
+import Link from "next/link";
+import Image from "next/image";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
+import { Clock, Share2, Star, Volume2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { IContent } from "@/types/content";
 
 interface ArticleCardProps {
-  article: {
-    id: number
-    title: string
-    excerpt: string
-    image: string
-    author: string
-    date: string
-    readTime: number
-    category: string
-    points: number
-    sponsor?: string
-  }
-  sponsored?: boolean
+  article: IContent;
 }
 
-export function ArticleCard({ article, sponsored = false }: ArticleCardProps) {
+export function ArticleCard({ article }: ArticleCardProps) {
   return (
     <Card className="overflow-hidden">
       <div className="relative">
-        <Link href={`/articles/${article.id}`}>
+        <Link href={`/articles/${article._id}`}>
           <Image
-            src={article.image || "/placeholder.svg"}
+            src={article.imageUrl || "/placeholder.svg"}
             alt={article.title}
             width={400}
             height={200}
             className="w-full h-48 object-cover"
           />
         </Link>
-        {sponsored && (
+        {article.isSponsored && (
           <Badge variant="secondary" className="absolute top-2 right-2">
-            Sponsored by {article.sponsor}
+            Sponsored by {article.sponsor.name}
           </Badge>
         )}
       </div>
@@ -44,21 +33,21 @@ export function ArticleCard({ article, sponsored = false }: ArticleCardProps) {
         <div className="flex justify-between items-start">
           <div>
             <p className="text-sm text-muted-foreground">
-              {article.category} • {article.date}
+              {article.category} • {new Date(article.createdAt).toLocaleDateString()}
             </p>
-            <Link href={`/articles/${article.id}`} className="hover:underline">
+            <Link href={`/articles/${article._id}`} className="hover:underline">
               <h3 className="font-bold mt-1 line-clamp-2">{article.title}</h3>
             </Link>
           </div>
         </div>
       </CardHeader>
       <CardContent className="p-4 pt-2">
-        <p className="text-sm text-muted-foreground line-clamp-2">{article.excerpt}</p>
+        <p className="text-sm text-muted-foreground line-clamp-2">{article.description}</p>
       </CardContent>
       <CardFooter className="p-4 pt-0 flex items-center justify-between">
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <Clock className="h-4 w-4" />
-          <span>{article.readTime} min read</span>
+          <span>{article.estimatedReadTime} min read</span>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="ghost" size="icon" className="h-8 w-8">
@@ -76,5 +65,5 @@ export function ArticleCard({ article, sponsored = false }: ArticleCardProps) {
         </div>
       </CardFooter>
     </Card>
-  )
+  );
 }

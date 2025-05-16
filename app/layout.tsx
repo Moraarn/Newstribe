@@ -10,7 +10,6 @@ const inter = Inter({ subsets: ["latin"] })
 export const metadata: Metadata = {
   title: "Newstribe - Content Platform",
   description: "An engaging content platform with articles, quizzes, and rewards",
-    generator: 'v0.dev'
 }
 
 export default function RootLayout({
