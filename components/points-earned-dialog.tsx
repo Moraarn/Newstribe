@@ -10,11 +10,12 @@ interface PointsEarnedDialogProps {
   points: number
   open: boolean
   onClose: () => void
+  previousPoints: number
 }
 
-export function PointsEarnedDialog({ points, open, onClose }: PointsEarnedDialogProps) {
+export function PointsEarnedDialog({ points, open, onClose, previousPoints }: PointsEarnedDialogProps) {
   const [progress, setProgress] = useState(0)
-  const [currentPoints, setCurrentPoints] = useState(1250) // Simulated current points
+  const [currentPoints, setCurrentPoints] = useState(previousPoints)
   const [newTotal, setNewTotal] = useState(currentPoints)
 
   useEffect(() => {

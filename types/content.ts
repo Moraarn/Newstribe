@@ -1,3 +1,4 @@
+import { IQuiz } from "./quiz";
 
 export enum ContentType {
   ARTICLE = "article",
@@ -29,6 +30,7 @@ export interface IContent {
   trustRating: number;
   trustRatingCount: number;
   audioUrl?: string;
+  quiz?: IQuiz;
   content: string;
   createdAt: Date;
   updatedAt: Date;

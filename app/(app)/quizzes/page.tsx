@@ -1,15 +1,13 @@
-import { Button } from "@/components/ui/button";
-import { Sparkles } from "lucide-react";
 import { getQuizzes } from "@/app/(app)/actions";
-import { ArticleCard } from "@/components/article-card";
-import { ArticleFilters, ArticlePagination } from "@/components/article-filters";
-import { ContentType, IContent } from "@/types/content";
+import { ArticlePagination } from "@/components/article-filters";
+import { IContent } from "@/types/content";
+import { QuizCard } from "@/components/quiz-card";
+import { QuizFilters } from "@/components/QuizFilters";
 
 interface PageProps {
   searchParams: Promise<{
     page?: string;
-    type?: ContentType;
-    category?: string;
+    level?: string;
     sort?: string;
     keyword?: string;
   }>;
@@ -21,27 +19,17 @@ export default async function QuizzesPage({ searchParams }: PageProps) {
 
   return (
     <div className="container py-6 space-y-8">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">Quizzes</h1>
-        <Button className="gap-2">
-          <Sparkles className="h-4 w-4" />
-          Featured
-        </Button>
-      </div>
-
-      <ArticleFilters
+      <QuizFilters
         currentFilters={{
-          type: query.type,
-          category: query.category,
+          level: query.level,
           sort: query.sort,
           keyword: query.keyword,
         }}
       />
-
       <section className="space-y-4">
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {(data.contents as unknown as IContent[]).map((article) => (
-            <ArticleCard key={article._id} article={article} />
+          {(data.contents as unknown as IContent[]).map((content) => (
+            <QuizCard key={content._id} content={content} />
           ))}
         </div>
       </section>

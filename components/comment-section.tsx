@@ -1,43 +1,170 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Button } from "@/components/ui/button"
-import { Textarea } from "@/components/ui/textarea"
-import { ThumbsUp, Reply, MoreHorizontal } from "lucide-react"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { useState, useEffect } from "react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { ThumbsUp, Reply, MoreHorizontal, Loader2 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { getComments, createComment, awardPoints } from "@/app/(app)/content/actions";
+import { PointsSource } from "@/types/points";
+import { toast } from "sonner";
+import { useNotifications } from "@/contexts/notification-context";
+import { useUser } from "@/contexts/user-context";
+import { NotificationType } from "@/types/notification";
+import { PointsEarnedDialog } from "@/components/points-earned-dialog";
 
 interface CommentSectionProps {
-  articleId: number
+  articleId: string;
+}
+
+interface Comment {
+  _id: string;
+  content: string;
+  user: {
+    _id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    avatar?: string;
+  };
+  text: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface CommentsResponse {
+  success: boolean;
+  message: string;
+  comments: Comment[];
+  pagination: {
+    page: number;
+    total: number;
+    limit: number;
+    totalPages: number;
+  };
+  filters: Record<string, any>;
+  sort: Record<string, number>;
+}
+
+interface CreateCommentResponse {
+  success: boolean;
+  message: string;
+  comment: Comment;
 }
 
 export function CommentSection({ articleId }: CommentSectionProps) {
-  const [comment, setComment] = useState("")
-  const [comments, setComments] = useState(sampleComments)
+  const { addNotification } = useNotifications();
+  const { refresh: refreshUser, user } = useUser();
+  const [comment, setComment] = useState("");
+  const [comments, setComments] = useState<Comment[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [totalPages, setTotalPages] = useState(1);
+  const [sortBy, setSortBy] = useState<"newest" | "oldest">("newest");
+  const [showPointsDialog, setShowPointsDialog] = useState(false);
+  const previousPoints = user?.points || 0;
 
-  const handleSubmitComment = () => {
-    if (!comment.trim()) return
+  useEffect(() => {
+    loadComments();
+  }, [articleId, page, sortBy]);
 
-    const newComment = {
-      id: comments.length + 1,
-      user: {
-        name: "You",
-        image: "/placeholder.svg?height=40&width=40&query=user",
-        username: "current_user",
-      },
-      content: comment,
-      timestamp: "Just now",
-      likes: 0,
-      replies: [],
+  const getAvatarUrl = (email: string, avatar?: string) => {
+    if (avatar) return avatar;
+    // Use DiceBear's avataaars with email as seed
+    return `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(email)}`;
+  };
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+
+    if (diffInSeconds < 60) return "just now";
+    if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
+    if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`;
+    if (diffInSeconds < 604800) return `${Math.floor(diffInSeconds / 86400)}d ago`;
+    return date.toLocaleDateString();
+  };
+
+  const loadComments = async () => {
+    try {
+      setIsLoading(true);
+      const response = (await getComments(articleId, {
+        limit: 10,
+        page,
+        sort: { createdAt: sortBy === "newest" ? -1 : 1 },
+      })) as CommentsResponse;
+
+      if (response.success) {
+        if (page === 1) {
+          setComments(response.comments);
+        } else {
+          setComments((prev) => [...prev, ...response.comments]);
+        }
+        setHasMore(page < response.pagination.totalPages);
+        setTotalPages(response.pagination.totalPages);
+      }
+    } catch (error) {
+      toast.error("Failed to load comments");
+    } finally {
+      setIsLoading(false);
     }
+  };
 
-    setComments([newComment, ...comments])
-    setComment("")
-  }
+  const handleSubmitComment = async () => {
+    if (!comment.trim()) return;
 
-  const handleLike = (commentId: number) => {
-    setComments(comments.map((c) => (c.id === commentId ? { ...c, likes: c.likes + 1 } : c)))
-  }
+    try {
+      setIsSubmitting(true);
+      const response = (await createComment(articleId, comment)) as CreateCommentResponse;
+      if (response.success) {
+        setComment("");
+        // Reload comments to show the new one
+        setPage(1);
+        loadComments();
+        toast.success("Comment posted successfully");
+
+        // Award points for commenting
+        await awardPoints(2, PointsSource.COMMENT, "Posted a comment");
+
+        // Show notification
+        addNotification({
+          type: NotificationType.POINTS_EARNED,
+          title: "Points Earned!",
+          message: "You earned 2 points for posting a comment!",
+        });
+
+        // Show points dialog
+        setShowPointsDialog(true);
+
+        // Refresh user context to update points
+        await refreshUser();
+      }
+    } catch (error) {
+      toast.error("Failed to post comment");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleLoadMore = () => {
+    if (page < totalPages) {
+      setPage((prev) => prev + 1);
+    }
+  };
+
+  const toggleSort = () => {
+    setSortBy((prev) => (prev === "newest" ? "oldest" : "newest"));
+    setPage(1);
+  };
 
   return (
     <div className="space-y-6">
@@ -53,10 +180,18 @@ export function CommentSection({ articleId }: CommentSectionProps) {
               value={comment}
               onChange={(e) => setComment(e.target.value)}
               className="resize-none"
+              disabled={isSubmitting}
             />
             <div className="flex justify-end">
-              <Button onClick={handleSubmitComment} disabled={!comment.trim()}>
-                Comment
+              <Button onClick={handleSubmitComment} disabled={!comment.trim() || isSubmitting}>
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Posting...
+                  </>
+                ) : (
+                  "Comment"
+                )}
               </Button>
             </div>
           </div>
@@ -64,132 +199,112 @@ export function CommentSection({ articleId }: CommentSectionProps) {
       </div>
 
       <div className="space-y-6">
-        {comments.map((comment) => (
-          <div key={comment.id} className="flex gap-3">
-            <Avatar className="h-10 w-10">
-              <AvatarImage src={comment.user.image || "/placeholder.svg"} alt={comment.user.name} />
-              <AvatarFallback>{comment.user.name.substring(0, 2).toUpperCase()}</AvatarFallback>
-            </Avatar>
-            <div className="flex-1">
-              <div className="flex items-center gap-2">
-                <span className="font-medium">{comment.user.name}</span>
-                <span className="text-xs text-muted-foreground">@{comment.user.username}</span>
-                <span className="text-xs text-muted-foreground">•</span>
-                <span className="text-xs text-muted-foreground">{comment.timestamp}</span>
-              </div>
-              <p className="mt-1 text-sm">{comment.content}</p>
-              <div className="flex items-center gap-4 mt-2">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 px-2 text-xs gap-1"
-                  onClick={() => handleLike(comment.id)}
-                >
-                  <ThumbsUp className="h-3.5 w-3.5" />
-                  {comment.likes > 0 && comment.likes}
-                </Button>
-                <Button variant="ghost" size="sm" className="h-8 px-2 text-xs gap-1">
-                  <Reply className="h-3.5 w-3.5" />
-                  Reply
-                </Button>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="sm" className="h-8 px-2">
-                      <MoreHorizontal className="h-3.5 w-3.5" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="start">
-                    <DropdownMenuItem>Report</DropdownMenuItem>
-                    {comment.user.username === "current_user" && <DropdownMenuItem>Delete</DropdownMenuItem>}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
+        <div className="flex justify-between items-center">
+          <h3 className="font-medium">Comments ({comments.length})</h3>
+          <Button variant="ghost" size="sm" onClick={toggleSort}>
+            Sort by: {sortBy === "newest" ? "Newest" : "Oldest"}
+          </Button>
+        </div>
 
-              {comment.replies.length > 0 && (
-                <div className="mt-4 space-y-4 pl-4 border-l">
-                  {comment.replies.map((reply) => (
-                    <div key={reply.id} className="flex gap-3">
-                      <Avatar className="h-8 w-8">
-                        <AvatarImage src={reply.user.image || "/placeholder.svg"} alt={reply.user.name} />
-                        <AvatarFallback>{reply.user.name.substring(0, 2).toUpperCase()}</AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium text-sm">{reply.user.name}</span>
-                          <span className="text-xs text-muted-foreground">@{reply.user.username}</span>
-                          <span className="text-xs text-muted-foreground">•</span>
-                          <span className="text-xs text-muted-foreground">{reply.timestamp}</span>
-                        </div>
-                        <p className="mt-1 text-sm">{reply.content}</p>
-                        <div className="flex items-center gap-4 mt-2">
-                          <Button variant="ghost" size="sm" className="h-7 px-2 text-xs gap-1">
-                            <ThumbsUp className="h-3 w-3" />
-                            {reply.likes > 0 && reply.likes}
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+        {isLoading && page === 1 ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
           </div>
-        ))}
-      </div>
-    </div>
-  )
-}
+        ) : (
+          <>
+            {comments.map((comment) => (
+              <div key={comment._id} className="flex gap-3">
+                <Avatar className="h-10 w-10">
+                  <AvatarImage
+                    src={getAvatarUrl(comment.user.email, comment.user.avatar)}
+                    alt={`${comment.user.firstName} ${comment.user.lastName}`}
+                  />
+                  <AvatarFallback>
+                    {comment.user.firstName.substring(0, 1)}
+                    {comment.user.lastName.substring(0, 1)}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium">
+                      {comment.user.firstName} {comment.user.lastName}
+                    </span>
+                    <span className="text-xs text-muted-foreground">•</span>
+                    <span className="text-xs text-muted-foreground">
+                      {formatDate(comment.createdAt)}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-sm">{comment.text}</p>
+                  <div className="flex items-center gap-4 mt-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 px-2 text-xs gap-1"
+                      onClick={() => toast.info("Like functionality coming soon")}
+                    >
+                      <ThumbsUp className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 px-2 text-xs gap-1"
+                      onClick={() => toast.info("Reply functionality coming soon")}
+                    >
+                      <Reply className="h-3.5 w-3.5" />
+                      Reply
+                    </Button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="sm" className="h-8 px-2">
+                          <MoreHorizontal className="h-3.5 w-3.5" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="start">
+                        <DropdownMenuItem
+                          onClick={() => toast.info("Report functionality coming soon")}
+                        >
+                          Report
+                        </DropdownMenuItem>
+                        {comment.user._id === "current_user_id" && (
+                          <DropdownMenuItem
+                            onClick={() => toast.info("Delete functionality coming soon")}
+                          >
+                            Delete
+                          </DropdownMenuItem>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                </div>
+              </div>
+            ))}
 
-const sampleComments = [
-  {
-    id: 1,
-    user: {
-      name: "Jane Smith",
-      image: "/diverse-woman-portrait.png",
-      username: "jane_smith",
-    },
-    content:
-      "This article provides great insights into how technology is transforming Africa. I particularly liked the section on mobile money platforms.",
-    timestamp: "2 hours ago",
-    likes: 12,
-    replies: [
-      {
-        id: 101,
-        user: {
-          name: "Michael Johnson",
-          image: "/placeholder.svg?height=40&width=40&query=man",
-          username: "michael_j",
-        },
-        content: "I agree! M-Pesa has completely changed how people handle finances in Kenya and beyond.",
-        timestamp: "1 hour ago",
-        likes: 5,
-      },
-    ],
-  },
-  {
-    id: 2,
-    user: {
-      name: "David Wilson",
-      image: "/diverse-group.png",
-      username: "david_w",
-    },
-    content:
-      "I'd love to see more examples of how blockchain is being used for land registries. Does anyone have links to specific projects?",
-    timestamp: "3 hours ago",
-    likes: 8,
-    replies: [],
-  },
-  {
-    id: 3,
-    user: {
-      name: "Sarah Thompson",
-      image: "/placeholder.svg?height=40&width=40&query=woman profile",
-      username: "sarah_t",
-    },
-    content:
-      "The point about digital divides is crucial. We need to ensure that technological benefits reach rural areas too, not just major cities.",
-    timestamp: "5 hours ago",
-    likes: 15,
-    replies: [],
-  },
-]
+            {hasMore && (
+              <div className="flex justify-center pt-4">
+                <Button variant="outline" onClick={handleLoadMore} disabled={isLoading}>
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Loading...
+                    </>
+                  ) : (
+                    "Load More Comments"
+                  )}
+                </Button>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+
+      {showPointsDialog && (
+        <PointsEarnedDialog
+          points={2}
+          open={showPointsDialog}
+          onClose={() => setShowPointsDialog(false)}
+          previousPoints={previousPoints}
+        />
+      )}
+    </div>
+  );
+}

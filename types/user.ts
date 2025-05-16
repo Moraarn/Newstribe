@@ -12,15 +12,21 @@ export enum UserRoles {
 }
 
 export interface IUser {
-  points: number;
+  id: string;
+  username: string;
+  email: string;
   firstName: string;
   lastName: string;
-  email: string;
-  status: UserStatus;
-  isEmailVerified: boolean;
-  roles: UserRoles[];
-  phone?: string;
   avatar?: string;
-  createdAt?: Date;
-  updatedAt?: Date;
+  points: number;
+  preferences?: {
+    categories: string[];
+    preferredFormats: string[];
+    readingLevel: string;
+    notificationPreferences: string[];
+    dailyDigest: boolean;
+    weeklyDigest: boolean;
+    language: string;
+    timezone: string;
+  };
 }

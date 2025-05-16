@@ -7,18 +7,27 @@ import { registerUser } from "../actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useToast } from "@/components/ui/use-toast";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useUser } from "@/contexts/user-context";
 
 export default function RegisterPage() {
   const router = useRouter();
-  const { toast } = useToast();
   const { update } = useUser();
   const [isLoading, setIsLoading] = useState(false);
+  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setIsLoading(true);
+    setMessage(null);
 
     const formData = new FormData(event.currentTarget);
     const email = formData.get("email") as string;
@@ -27,7 +36,11 @@ export default function RegisterPage() {
     const lastName = formData.get("lastName") as string;
 
     try {
-      const { success, user } = await registerUser({
+      const {
+        success,
+        user,
+        message: responseMessage,
+      } = await registerUser({
         email,
         password,
         firstName,
@@ -36,17 +49,17 @@ export default function RegisterPage() {
 
       if (success) {
         update(user);
-        toast({
-          title: "Welcome!",
-          description: "Your account has been created successfully.",
-        });
-        router.push("/");
+        setMessage({ type: "success", text: responseMessage });
+        setTimeout(() => {
+          router.push("/onboarding");
+        }, 1500);
+      } else {
+        setMessage({ type: "error", text: responseMessage });
       }
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Something went wrong. Please try again.",
-        variant: "destructive",
+      setMessage({
+        type: "error",
+        text: "Something went wrong. Please try again.",
       });
     } finally {
       setIsLoading(false);
@@ -55,17 +68,22 @@ export default function RegisterPage() {
 
   return (
     <div className="container flex h-screen w-screen flex-col items-center justify-center">
-      <div className="mx-auto flex w-full flex-col justify-center space-y-6 sm:w-[350px]">
-        <div className="flex flex-col space-y-2 text-center">
-          <h1 className="text-2xl font-semibold tracking-tight">
-            Create an account
-          </h1>
-          <p className="text-sm text-muted-foreground">
+      <Card className="w-full max-w-[400px]">
+        <CardHeader className="space-y-1">
+          <CardTitle className="text-2xl text-center">Create an account</CardTitle>
+          <CardDescription className="text-center">
             Enter your information to create your account
-          </p>
-        </div>
-
-        <div className="grid gap-6">
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {message && (
+            <Alert
+              variant={message.type === "success" ? "default" : "destructive"}
+              className="mb-4"
+            >
+              <AlertDescription>{message.text}</AlertDescription>
+            </Alert>
+          )}
           <form onSubmit={onSubmit}>
             <div className="grid gap-4">
               <div className="grid grid-cols-2 gap-4">
@@ -121,23 +139,21 @@ export default function RegisterPage() {
                   required
                 />
               </div>
-              <Button disabled={isLoading}>
+              <Button disabled={isLoading} className="w-full">
                 {isLoading ? "Creating account..." : "Create account"}
               </Button>
             </div>
           </form>
-        </div>
-
-        <p className="px-8 text-center text-sm text-muted-foreground">
-          Already have an account?{" "}
-          <Link
-            href="/login"
-            className="underline underline-offset-4 hover:text-primary"
-          >
-            Sign in
-          </Link>
-        </p>
-      </div>
+        </CardContent>
+        <CardFooter>
+          <p className="text-sm text-muted-foreground text-center w-full">
+            Already have an account?{" "}
+            <Link href="/login" className="underline underline-offset-4 hover:text-primary">
+              Sign in
+            </Link>
+          </p>
+        </CardFooter>
+      </Card>
     </div>
   );
-} 
+}

@@ -1,71 +1,211 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import Image from "next/image"
-import Link from "next/link"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card"
-import { Progress } from "@/components/ui/progress"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Award, BookOpen, Calendar, Clock, Headphones, MessageSquare, Share2, Star, ThumbsUp } from "lucide-react"
-import { CommentSection } from "@/components/comment-section"
-import { ArticleQuestions } from "@/components/article-questions"
-import { PointsEarnedDialog } from "@/components/points-earned-dialog"
-import { IContent } from "@/types/content"
+import { useState, useEffect } from "react";
+import Image from "next/image";
+import Link from "next/link";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Award,
+  BookOpen,
+  Calendar,
+  Clock,
+  Headphones,
+  MessageSquare,
+  Share2,
+  Star,
+  ThumbsUp,
+} from "lucide-react";
+import { CommentSection } from "@/components/comment-section";
+import { ArticleQuestions } from "@/components/article-questions";
+import { PointsEarnedDialog } from "@/components/points-earned-dialog";
+import { IContent } from "@/types/content";
+import {
+  updateUserProgress,
+  getComments,
+  likeContent,
+  shareContent,
+  rateContent,
+} from "@/app/(app)/content/actions";
+import { toast } from "sonner";
 
 interface ArticleViewProps {
   article: IContent;
 }
 
+interface QuizQuestion {
+  question: string;
+  options: string[];
+  correctIndex: number;
+}
+
+interface Quiz {
+  _id: string;
+  questions: QuizQuestion[];
+  points: number;
+  settings: {
+    timeLimit: number;
+    maxAttempts: number;
+    difficulty: string;
+  };
+}
+
+interface QuizResponse {
+  success: boolean;
+  message: string;
+  quiz: Quiz;
+}
+
+interface CommentsResponse {
+  success: boolean;
+  comments: any[];
+  total: number;
+}
+
 export function ArticleView({ article }: ArticleViewProps) {
-  const [readingProgress, setReadingProgress] = useState(0)
-  const [readingTime, setReadingTime] = useState(0)
-  const [isReading, setIsReading] = useState(false)
-  const [showPointsDialog, setShowPointsDialog] = useState(false)
-  const [earnedPoints, setEarnedPoints] = useState(0)
-  const [isAudioPlaying, setIsAudioPlaying] = useState(false)
+  const [readingProgress, setReadingProgress] = useState(0);
+  const [readingTime, setReadingTime] = useState(0);
+  const [isReading, setIsReading] = useState(false);
+  const [showPointsDialog, setShowPointsDialog] = useState(false);
+  const [earnedPoints, setEarnedPoints] = useState(0);
+  const [isAudioPlaying, setIsAudioPlaying] = useState(false);
+  const [quiz, setQuiz] = useState<Quiz | null>(null);
+  const [selectedAnswers, setSelectedAnswers] = useState<number[]>([]);
+  const [quizDifficulty, setQuizDifficulty] = useState("medium");
+  const [isQuizLoading, setIsQuizLoading] = useState(false);
+  const [quizCompleted, setQuizCompleted] = useState(false);
+  const [quizScore, setQuizScore] = useState(0);
+  const [isLoading, setIsLoading] = useState(false);
+  const [comments, setComments] = useState<any[]>([]);
+  const [isCommentsLoading, setIsCommentsLoading] = useState(false);
+
+  // Load saved progress from localStorage
+  useEffect(() => {
+    const savedProgress = localStorage.getItem(`article_${article._id}_progress`);
+    if (savedProgress) {
+      const { readingProgress: savedReadingProgress, earnedPoints: savedPoints } =
+        JSON.parse(savedProgress);
+      setReadingProgress(savedReadingProgress);
+      setEarnedPoints(savedPoints);
+    }
+  }, [article._id]);
+
+  // Load comments
+  useEffect(() => {
+    loadComments();
+  }, [article._id]);
+
+  const loadComments = async () => {
+    try {
+      setIsCommentsLoading(true);
+      const response = (await getComments(article._id, { limit: 10, page: 1 })) as CommentsResponse;
+      if (response.success) {
+        setComments(response.comments);
+      }
+    } catch (error) {
+      toast.error("Failed to load comments");
+    } finally {
+      setIsCommentsLoading(false);
+    }
+  };
+
+  // Save progress to localStorage
+  const saveProgress = (progress: number, points: number) => {
+    localStorage.setItem(
+      `article_${article._id}_progress`,
+      JSON.stringify({ readingProgress: progress, earnedPoints: points })
+    );
+  };
 
   // Simulate reading time tracking
   useEffect(() => {
     if (isReading) {
       const interval = setInterval(() => {
         setReadingTime((prev) => {
-          const newTime = prev + 1
-          // Calculate progress as a percentage of the estimated read time
-          const progress = Math.min((newTime / (article.estimatedReadTime * 60)) * 100, 100)
-          setReadingProgress(progress)
+          const newTime = prev + 1;
+          const progress = Math.min((newTime / (article.estimatedReadTime * 60)) * 100, 100);
+          setReadingProgress(progress);
 
-          // If user has read enough of the article, show points dialog
           if (progress >= 80 && earnedPoints === 0) {
-            setEarnedPoints(article.points)
-            setShowPointsDialog(true)
+            const points = article.points || 0;
+            setEarnedPoints(points);
+            setShowPointsDialog(true);
+            saveProgress(progress, points);
+
+            // Update user progress in backend
+            updateUserProgress({
+              content: article,
+              progress: progress,
+              pointsEarned: points,
+              completed: false,
+              lastEngagedAt: new Date(),
+              createdAt: new Date(),
+              updatedAt: new Date(),
+            }).catch(console.error);
           }
 
-          return newTime
-        })
-      }, 1000)
+          return newTime;
+        });
+      }, 1000);
 
-      return () => clearInterval(interval)
+      return () => clearInterval(interval);
     }
-  }, [isReading, article.estimatedReadTime, earnedPoints, article.points])
+  }, [isReading, article.estimatedReadTime, earnedPoints, article.points, article._id]);
 
-  // Start tracking when user views the article
-  useEffect(() => {
-    setIsReading(true)
+  const handleAnswerSelect = (questionIndex: number, answerIndex: number) => {
+    setSelectedAnswers((prev) => {
+      const newAnswers = [...prev];
+      newAnswers[questionIndex] = answerIndex;
+      return newAnswers;
+    });
+  };
 
-    return () => {
-      setIsReading(false)
+  const handleLike = async () => {
+    try {
+      setIsLoading(true);
+      await likeContent(article._id);
+      toast.success("Article liked successfully");
+    } catch (error) {
+      toast.error("Failed to like article");
+    } finally {
+      setIsLoading(false);
     }
-  }, [])
+  };
+
+  const handleShare = async () => {
+    try {
+      setIsLoading(true);
+      await shareContent(article._id);
+      toast.success("Article shared successfully");
+    } catch (error) {
+      toast.error("Failed to share article");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleRate = async (rating: number) => {
+    try {
+      setIsLoading(true);
+      await rateContent(article._id, rating);
+      toast.success("Article rated successfully");
+    } catch (error) {
+      toast.error("Failed to rate article");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   // Format seconds to minutes and seconds
   const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60)
-    const secs = seconds % 60
-    return `${mins}:${secs < 10 ? "0" : ""}${secs}`
-  }
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs < 10 ? "0" : ""}${secs}`;
+  };
 
   return (
     <div className="container py-6">
@@ -117,6 +257,7 @@ export function ArticleView({ article }: ArticleViewProps) {
                 variant="secondary"
                 className="absolute top-4 right-4 gap-2 px-4 py-2 shadow-md hover:shadow-lg transition-all"
                 onClick={() => setIsAudioPlaying(!isAudioPlaying)}
+                disabled={isLoading}
               >
                 <Headphones className="h-4 w-4" />
                 {isAudioPlaying ? "Pause Audio" : "Listen to Article"}
@@ -144,15 +285,35 @@ export function ArticleView({ article }: ArticleViewProps) {
 
           <div className="flex items-center justify-between pt-4">
             <div className="flex items-center gap-4">
-              <Button variant="outline" size="sm" className="gap-1">
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1"
+                onClick={handleLike}
+                disabled={isLoading}
+              >
                 <ThumbsUp className="h-4 w-4" />
                 Like
               </Button>
-              <Button variant="outline" size="sm" className="gap-1">
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1"
+                onClick={() =>
+                  document.getElementById("comments")?.scrollIntoView({ behavior: "smooth" })
+                }
+                disabled={isLoading}
+              >
                 <MessageSquare className="h-4 w-4" />
                 Comment
               </Button>
-              <Button variant="outline" size="sm" className="gap-1">
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1"
+                onClick={handleShare}
+                disabled={isLoading}
+              >
                 <Share2 className="h-4 w-4" />
                 Share
               </Button>
@@ -161,9 +322,20 @@ export function ArticleView({ article }: ArticleViewProps) {
               <span className="text-sm">Rate this article:</span>
               <div className="flex">
                 {[1, 2, 3, 4, 5].map((star) => (
-                  <Button key={star} variant="ghost" size="icon" className="h-8 w-8">
+                  <Button
+                    key={star}
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={() => handleRate(star)}
+                    disabled={isLoading}
+                  >
                     <Star
-                      className={`h-4 w-4 ${star <= Math.round(article.trustRating) ? "fill-yellow-400 text-yellow-400" : "text-muted-foreground"}`}
+                      className={`h-4 w-4 ${
+                        star <= Math.round(article.trustRating)
+                          ? "fill-yellow-400 text-yellow-400"
+                          : "text-muted-foreground"
+                      }`}
                     />
                     <span className="sr-only">Rate {star} stars</span>
                   </Button>
@@ -181,7 +353,7 @@ export function ArticleView({ article }: ArticleViewProps) {
             <TabsContent value="questions" className="mt-4">
               <ArticleQuestions articleId={article._id} />
             </TabsContent>
-            <TabsContent value="comments" className="mt-4">
+            <TabsContent value="comments" className="mt-4" id="comments">
               <CommentSection articleId={article._id} />
             </TabsContent>
           </Tabs>
@@ -203,12 +375,15 @@ export function ArticleView({ article }: ArticleViewProps) {
                     className="rounded-md object-cover"
                   />
                   <div>
-                    <Link href={`/articles/${id}`} className="font-medium text-sm hover:underline line-clamp-2">
+                    <Link
+                      href={`/articles/${id}`}
+                      className="font-medium text-sm hover:underline line-clamp-2"
+                    >
                       {id === 1
                         ? "The Rise of AI in Everyday Life"
                         : id === 2
-                          ? "Sustainable Energy Solutions for Africa"
-                          : "Digital Transformation in Business"}
+                        ? "Sustainable Energy Solutions for Africa"
+                        : "Digital Transformation in Business"}
                     </Link>
                     <p className="text-xs text-muted-foreground mt-1">
                       {id * 3 + 2} min read • {id * 10 + 20} points
@@ -260,8 +435,13 @@ export function ArticleView({ article }: ArticleViewProps) {
       </div>
 
       {showPointsDialog && (
-        <PointsEarnedDialog points={earnedPoints} open={showPointsDialog} onClose={() => setShowPointsDialog(false)} />
+        <PointsEarnedDialog
+          points={earnedPoints}
+          open={showPointsDialog}
+          onClose={() => setShowPointsDialog(false)}
+          previousPoints={0}
+        />
       )}
     </div>
-  )
-} 
+  );
+}

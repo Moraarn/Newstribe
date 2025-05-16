@@ -1,5 +1,6 @@
 import { getArticleById } from "@/app/(app)/actions";
 import { ArticleView } from "@/components/article-view";
+import QuizView from "@/components/quiz-view";
 import { ContentType } from "@/types/content";
 import { notFound } from "next/navigation";
 
@@ -14,8 +15,7 @@ export default async function ContentPage({ params }: { params: Promise<{ id: st
     case ContentType.ARTICLE:
       return <ArticleView article={data.content} />;
     case ContentType.QUIZ:
-      // TODO: Implement quiz view
-      return <div>Quiz view coming soon</div>;
+      return <QuizView quizData={data.content} />;
     case ContentType.SPONSORED:
       return <ArticleView article={data.content} />;
     case ContentType.MINI_GAME:
