@@ -58,7 +58,7 @@ export function RewardCard({ reward }: RewardCardProps) {
           <span className="font-bold">{reward.pointsRequired.toLocaleString()}</span>
           <span className="text-sm text-muted-foreground">points</span>
         </div>
-        <RedeemPointsDialog reward={reward} disabled={!canRedeem} />
+        <RedeemPointsDialog reward={reward} />
       </CardFooter>
     </Card>
   );

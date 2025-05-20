@@ -34,13 +34,20 @@ export function RedeemPointsDialog({ reward }: RedeemPointsDialogProps) {
   const handleRedeem = async () => {
     try {
       setIsRedeeming(true);
-      const result = await redeemReward(reward._id);
-      
-      if (result.success) {
+      // const result = await redeemReward(reward._id);
+
+      //delay for 3 seconds
+      await new Promise(resolve => setTimeout(resolve, 3000));
+
+      if (true) {
+        // Dummy success message
+        toast.success("Reward redeemed successfully!");
+
         // Update user points in context
         if (user) {
           update({ points: userPoints - reward.pointsRequired });
         }
+
         setShowSuccess(true);
         // Close dialog after 3 seconds
         setTimeout(() => {
@@ -49,7 +56,7 @@ export function RedeemPointsDialog({ reward }: RedeemPointsDialogProps) {
           router.refresh();
         }, 3000);
       } else {
-        toast.error(result.message || "Failed to redeem reward");
+        toast.error("Failed to redeem reward");
       }
     } catch (error) {
       toast.error("An error occurred while redeeming the reward");
