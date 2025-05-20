@@ -1,29 +1,8 @@
 import { Suspense } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Star } from "lucide-react";
-import { getCurrentUserPoints, getRewards } from "./action";
+import { getRewards } from "./action";
 import { RewardCard } from "@/components/reward-card";
-
-async function RewardsHeader() {
-  const pointsData = await getCurrentUserPoints();
-  const points = pointsData?.points || 0;
-  
-  return (
-    <div className="flex flex-col md:flex-row justify-between items-start gap-4">
-      <div>
-        <h1 className="text-3xl font-bold">Rewards Marketplace</h1>
-        <p className="text-muted-foreground mt-1">Redeem your points for exciting rewards</p>
-      </div>
-      <div className="flex items-center gap-2 bg-muted p-3 rounded-lg">
-        <div className="flex items-center gap-1">
-          <Star className="h-5 w-5 fill-primary text-primary" />
-          <span className="font-bold text-lg">{points.toLocaleString()}</span>
-        </div>
-        <span className="text-muted-foreground">Available Points</span>
-      </div>
-    </div>
-  );
-}
+import { RewardsHeader } from "./rewards-header";
 
 async function RewardsGrid({ type = "all" }: { type?: string }) {
   const query = type === "all" ? {} : { type };
@@ -49,9 +28,7 @@ async function RewardsGrid({ type = "all" }: { type?: string }) {
 export default function RewardsPage() {
   return (
     <div className="container py-6 space-y-6">
-      <Suspense fallback={<RewardsHeaderSkeleton />}>
-        <RewardsHeader />
-      </Suspense>
+      <RewardsHeader />
 
       <Tabs defaultValue="all" className="w-full">
         <TabsList className="grid w-full grid-cols-5 md:w-[600px]">
@@ -90,18 +67,6 @@ export default function RewardsPage() {
           </TabsContent>
         </Suspense>
       </Tabs>
-    </div>
-  );
-}
-
-function RewardsHeaderSkeleton() {
-  return (
-    <div className="flex flex-col md:flex-row justify-between items-start gap-4">
-      <div>
-        <div className="h-8 w-64 bg-muted rounded animate-pulse" />
-        <div className="h-4 w-96 bg-muted rounded mt-2 animate-pulse" />
-      </div>
-      <div className="h-12 w-48 bg-muted rounded animate-pulse" />
     </div>
   );
 }

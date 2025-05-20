@@ -6,12 +6,17 @@ import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card"
 import { Star } from "lucide-react";
 import { RedeemPointsDialog } from "@/components/redeem-points-dialog";
 import { IReward } from "@/app/(app)/rewards/action";
+import { useUser } from "@/contexts/user-context";
 
 interface RewardCardProps {
   reward: IReward;
 }
 
 export function RewardCard({ reward }: RewardCardProps) {
+  const { user } = useUser();
+  const userPoints = user?.points || 0;
+  const canRedeem = userPoints >= reward.pointsRequired && reward.isActive && reward.quantity > 0;
+
   return (
     <Card className="overflow-hidden">
       <div className="relative">
@@ -53,7 +58,7 @@ export function RewardCard({ reward }: RewardCardProps) {
           <span className="font-bold">{reward.pointsRequired.toLocaleString()}</span>
           <span className="text-sm text-muted-foreground">points</span>
         </div>
-        <RedeemPointsDialog reward={reward} />
+        <RedeemPointsDialog reward={reward} disabled={!canRedeem} />
       </CardFooter>
     </Card>
   );

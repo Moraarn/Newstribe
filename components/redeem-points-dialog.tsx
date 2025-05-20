@@ -8,154 +8,107 @@ import {
   DialogTitle,
   DialogDescription,
   DialogFooter,
+  DialogTrigger,
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Gift, Phone, Star } from "lucide-react"
+import { IReward } from "@/app/(app)/rewards/action"
+import { redeemReward } from "@/app/(app)/rewards/action"
+import { useRouter } from "next/navigation"
+import { toast } from "sonner"
+import { useUser } from "@/contexts/user-context"
 
 interface RedeemPointsDialogProps {
-  reward: {
-    id: number
-    title: string
-    points: number
-    category: string
-  }
+  reward: IReward
+  disabled?: boolean
 }
 
-export function RedeemPointsDialog({ reward }: RedeemPointsDialogProps) {
-  const [open, setOpen] = useState(false)
+export function RedeemPointsDialog({ reward, disabled }: RedeemPointsDialogProps) {
+  const [isOpen, setIsOpen] = useState(false)
   const [redeemMethod, setRedeemMethod] = useState("web")
   const [phoneNumber, setPhoneNumber] = useState("")
   const [ussdCode, setUssdCode] = useState("*123*456#")
   const [isRedeeming, setIsRedeeming] = useState(false)
   const [isRedeemed, setIsRedeemed] = useState(false)
+  const router = useRouter()
+  const { user } = useUser()
+  const userPoints = user?.points || 0
 
-  const handleRedeem = () => {
-    setIsRedeeming(true)
-
-    // Simulate API call
-    setTimeout(() => {
+  const handleRedeem = async () => {
+    try {
+      setIsRedeeming(true)
+      const result = await redeemReward(reward._id)
+      
+      if (result.success) {
+        toast.success(result.message || "Reward redeemed successfully!")
+        setIsOpen(false)
+        router.refresh() // Refresh the page to update points
+      } else {
+        toast.error(result.message || "Failed to redeem reward")
+      }
+    } catch (error) {
+      toast.error("An error occurred while redeeming the reward")
+    } finally {
       setIsRedeeming(false)
-      setIsRedeemed(true)
-    }, 2000)
+    }
   }
 
-  const resetDialog = () => {
-    setIsRedeemed(false)
-    setRedeemMethod("web")
-    setPhoneNumber("")
-    setOpen(false)
-  }
-
-  const userPoints = 1250 // Simulated user points
-  const canRedeem = userPoints >= reward.points
+  const canRedeem = userPoints >= reward.pointsRequired && reward.isActive && reward.quantity > 0
 
   return (
     <>
-      <Button onClick={() => setOpen(true)} disabled={!canRedeem} variant={canRedeem ? "default" : "outline"} size="sm">
-        {canRedeem ? "Redeem" : "Not Enough Points"}
-      </Button>
-
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="sm:max-w-md">
+      <Dialog open={isOpen} onOpenChange={setIsOpen}>
+        <DialogTrigger asChild>
+          <Button 
+            variant="default" 
+            disabled={disabled || !canRedeem}
+          >
+            {disabled ? "Not Enough Points" : 
+             !reward.isActive || reward.quantity === 0 ? "Out of Stock" : "Redeem"}
+          </Button>
+        </DialogTrigger>
+        <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
-            <DialogTitle>{isRedeemed ? "Redemption Successful!" : "Redeem Reward"}</DialogTitle>
-            {!isRedeemed && (
-              <DialogDescription>
-                You are about to redeem {reward.title} for {reward.points} points.
-              </DialogDescription>
-            )}
+            <DialogTitle>Redeem {reward.name}</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to redeem this reward for {reward.pointsRequired} points?
+            </DialogDescription>
           </DialogHeader>
-
-          {isRedeemed ? (
-            <div className="py-6 flex flex-col items-center text-center space-y-4">
-              <div className="bg-primary/10 rounded-full p-6">
-                <Gift className="h-12 w-12 text-primary" />
-              </div>
-              <div className="space-y-2">
-                <h3 className="text-xl font-bold">Reward Redeemed!</h3>
-                <p className="text-muted-foreground">
-                  You have successfully redeemed {reward.title} for {reward.points} points.
+          <div className="grid gap-4 py-4">
+            <div className="space-y-2">
+              <p className="text-sm font-medium">Reward Details:</p>
+              <p className="text-sm text-muted-foreground">{reward.description}</p>
+              {reward.expiryDate && (
+                <p className="text-xs text-muted-foreground">
+                  Expires: {new Date(reward.expiryDate).toLocaleDateString()}
                 </p>
-                {redeemMethod === "web" ? (
-                  <p className="text-sm">
-                    Your reward code is:{" "}
-                    <span className="font-bold">
-                      REW-{Math.floor(Math.random() * 10000)}-{Math.floor(Math.random() * 10000)}
-                    </span>
-                  </p>
-                ) : (
-                  <p className="text-sm">Your reward has been sent to {phoneNumber}</p>
-                )}
+              )}
+              <p className="text-xs text-muted-foreground">
+                Available Quantity: {reward.quantity}
+              </p>
+              <div className="flex items-center justify-between mt-2">
+                <p className="text-sm">Your Points:</p>
+                <p className="font-medium">{userPoints.toLocaleString()}</p>
+              </div>
+              <div className="flex items-center justify-between">
+                <p className="text-sm">Required Points:</p>
+                <p className="font-medium">{reward.pointsRequired.toLocaleString()}</p>
               </div>
             </div>
-          ) : (
-            <div className="py-4">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-1">
-                  <Star className="h-4 w-4 fill-primary text-primary" />
-                  <span className="font-bold">{reward.points}</span>
-                  <span className="text-sm text-muted-foreground">points</span>
-                </div>
-                <div className="text-sm text-muted-foreground">
-                  Your balance: <span className="font-medium">{userPoints} points</span>
-                </div>
-              </div>
-
-              <Tabs defaultValue="web" onValueChange={setRedeemMethod}>
-                <TabsList className="grid w-full grid-cols-2">
-                  <TabsTrigger value="web">Web</TabsTrigger>
-                  <TabsTrigger value="ussd">USSD</TabsTrigger>
-                </TabsList>
-                <TabsContent value="web" className="space-y-4 mt-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="phone">Phone Number</Label>
-                    <div className="flex gap-2">
-                      <Input
-                        id="phone"
-                        placeholder="Enter your phone number"
-                        value={phoneNumber}
-                        onChange={(e) => setPhoneNumber(e.target.value)}
-                      />
-                    </div>
-                    <p className="text-xs text-muted-foreground">We'll send your reward to this phone number</p>
-                  </div>
-                </TabsContent>
-                <TabsContent value="ussd" className="space-y-4 mt-4">
-                  <div className="space-y-2">
-                    <Label>USSD Code</Label>
-                    <div className="flex items-center gap-2 p-3 bg-muted rounded-md">
-                      <Phone className="h-4 w-4 text-muted-foreground" />
-                      <span className="font-medium">{ussdCode}</span>
-                    </div>
-                    <p className="text-xs text-muted-foreground">Dial this code on your phone to redeem your reward</p>
-                  </div>
-                </TabsContent>
-              </Tabs>
-            </div>
-          )}
-
-          <DialogFooter className="flex-col sm:flex-col gap-2">
-            {isRedeemed ? (
-              <Button onClick={resetDialog} className="w-full">
-                Done
-              </Button>
-            ) : (
-              <>
-                <Button
-                  onClick={handleRedeem}
-                  className="w-full"
-                  disabled={(redeemMethod === "web" && !phoneNumber) || isRedeeming}
-                >
-                  {isRedeeming ? "Processing..." : "Confirm Redemption"}
-                </Button>
-                <Button variant="outline" onClick={() => setOpen(false)} className="w-full" disabled={isRedeeming}>
-                  Cancel
-                </Button>
-              </>
-            )}
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsOpen(false)}
+              disabled={isRedeeming}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleRedeem}
+              disabled={isRedeeming || disabled || !reward.isActive || reward.quantity === 0}
+            >
+              {isRedeeming ? "Redeeming..." : "Confirm Redeem"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
