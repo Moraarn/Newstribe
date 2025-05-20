@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -21,23 +21,26 @@ import { motion, AnimatePresence } from "framer-motion";
 
 interface RedeemPointsDialogProps {
   reward: IReward;
-  disabled?: boolean;
 }
 
-export function RedeemPointsDialog({ reward, disabled }: RedeemPointsDialogProps) {
+export function RedeemPointsDialog({ reward }: RedeemPointsDialogProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isRedeeming, setIsRedeeming] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const router = useRouter();
-  const { user } = useUser();
+  const { user, update } = useUser();
   const userPoints = user?.points || 0;
 
   const handleRedeem = async () => {
     try {
       setIsRedeeming(true);
       const result = await redeemReward(reward._id);
-
+      
       if (result.success) {
+        // Update user points in context
+        if (user) {
+          update({ points: userPoints - reward.pointsRequired });
+        }
         setShowSuccess(true);
         // Close dialog after 3 seconds
         setTimeout(() => {
@@ -55,17 +58,18 @@ export function RedeemPointsDialog({ reward, disabled }: RedeemPointsDialogProps
     }
   };
 
-  const canRedeem = userPoints >= reward.pointsRequired && reward.isActive && reward.quantity > 0;
-
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
-        <Button variant="default" disabled={disabled || !canRedeem}>
-          {disabled
-            ? "Not Enough Points"
-            : !reward.isActive || reward.quantity === 0
-            ? "Out of Stock"
-            : "Redeem"}
+        <Button 
+          variant="default" 
+          disabled={!reward.isActive || reward.quantity === 0 || userPoints < reward.pointsRequired}
+        >
+          {!reward.isActive || reward.quantity === 0 
+            ? 'Out of Stock' 
+            : userPoints < reward.pointsRequired 
+              ? 'Not Enough Points' 
+              : 'Redeem'}
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[425px]">
@@ -169,14 +173,18 @@ export function RedeemPointsDialog({ reward, disabled }: RedeemPointsDialogProps
                 </div>
               </div>
               <DialogFooter>
-                <Button variant="outline" onClick={() => setIsOpen(false)} disabled={isRedeeming}>
+                <Button
+                  variant="outline"
+                  onClick={() => setIsOpen(false)}
+                  disabled={isRedeeming}
+                >
                   Cancel
                 </Button>
                 <Button
                   onClick={handleRedeem}
-                  disabled={isRedeeming || disabled || !reward.isActive || reward.quantity === 0}
+                  disabled={isRedeeming || !reward.isActive || reward.quantity === 0 || userPoints < reward.pointsRequired}
                 >
-                  {isRedeeming ? "Redeeming..." : "Confirm Redeem"}
+                  {isRedeeming ? 'Redeeming...' : 'Confirm Redeem'}
                 </Button>
               </DialogFooter>
             </motion.div>
